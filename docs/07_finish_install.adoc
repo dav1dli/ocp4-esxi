@@ -1,0 +1,32 @@
+# Nodes
+```
+NAME                                     STATUS   ROLES    AGE   VERSION
+ocp-master-0.sandbox-ocp4.cmpf.schwarz   Ready    master   39m   v1.17.1+1aa1c48
+ocp-master-1.sandbox-ocp4.cmpf.schwarz   Ready    master   33m   v1.17.1+1aa1c48
+ocp-master-2.sandbox-ocp4.cmpf.schwarz   Ready    master   31m   v1.17.1+1aa1c48
+```
+
+### Approve the CSRs for workers
+Worker nodes create CSRs to join the cluster. These SCRs are https://docs.openshift.com/container-platform/4.4/installing/installing_bare_metal/installing-restricted-networks-bare-metal.html#installation-approve-csrs_installing-restricted-networks-bare-metal[reviewed and approved^]: `oc get csr`
+
+Approve all CSRs: `oc get csr -o go-template='{{range .items}}{{if not .status}}{{.metadata.name}}{{"\n"}}{{end}}{{end}}' | xargs oc adm certificate approve`
+
+```
+NAME                                      STATUS   ROLES    AGE     VERSION
+ocp-compute-0.sandbox-ocp4.cmpf.schwarz   Ready    worker   2m23s   v1.17.1+1aa1c48
+ocp-compute-1.sandbox-ocp.cmpf.schwarz    Ready    worker   2m23s   v1.17.1+1aa1c48
+ocp-master-0.sandbox-ocp4.cmpf.schwarz    Ready    master   48m     v1.17.1+1aa1c48
+ocp-master-1.sandbox-ocp4.cmpf.schwarz    Ready    master   42m     v1.17.1+1aa1c48
+ocp-master-2.sandbox-ocp4.cmpf.schwarz    Ready    master   40m     v1.17.1+1aa1c48
+```
+# Operators
+## Internal Registry
+In this setup it is enough to setup image registry with emptyDir storage. In production configurations persistent storage volumes should be used.
+
+Patch the configuration: `oc patch configs.imageregistry.operator.openshift.io cluster --type merge --patch '{"spec":{"storage":{"emptyDir":{}}}}'`
+
+Run `oc get clusteroperators`. Make sure that all operators are available. If it is the case the cluster is finished installing and available for access and post-configuration.
+
+Web Console: https://console-openshift-console.apps.sandbox-ocp4.cmpf.schwarz
+
+This URL can be accessed via the browser from the bastion host.

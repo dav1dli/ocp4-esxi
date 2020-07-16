@@ -1,0 +1,57 @@
+# Setup VMware ESXi
+
+* Download: https://my.vmware.com/group/vmware/evalcenter?p=free-esxi6
+* License key: 5N496-6U1D4-N8T80-XXXX-XXXX
+
+In https://robot.your-server.de/support submit a support request to allocate KVM/Remote Console
+
+Install guide: https://wiki.hetzner.de/index.php/VMware_ESXi/en#Installation_Guide
+
+* Rescue IP: 116.202.244.184
+* Username: kunde
+* Password: XXX
+
+*Note:* The console works with Firefox and not with Chrome
+
+* Order a backup storage box to host the ISO image.
+* Enable access protocols in Hetzner console.
+* Upload: scp VMware-VMvisor-Installer-6.7.0.update03-14320388.x86_64.iso u237470@u237470.your-storagebox.de:/VMware-VMvisor-Installer-6.7.0.update03-14320388.x86_64.iso
+
+In KVM console -> Virtual Media mount the ISO:
+
+* Server: u237470.your-storagebox.de
+* Share Name: backup
+* Image File with Path: VMware-VMvisor-Installer-6.7.0.update03-14320388.x86_64.iso
+* User Name (optional): u237470
+* Password (optional): XXX
+
+In console:
+
+* Reboot: KVM: Ctl-Alt-Del
+* F11: Boot menu -> PepperC Virtual Disc 1 0.01
+* ESXi Installer
+
+The boot takes several minutes. The installer boots into a text installation menu.
+
+* Select the first drive to install to.
+* Root: R3**@**1!
+* Reboot and boot from the local drive.
+
+Installed system: VMware ESXi 6.7.0 (build 14320388), Hetzner, AMD Ryzen 7 3700X 8-Core, 64GB RAM
+
+Console: http://116.202.244.184
+
+*Note:* use Firefox, Chrome cannot render the page
+
+Add a user: admin / r3***!
+
+In order to create VMs ISO images are uploaded to the datastore. It can be done with WebUI in Storage section.
+
+ESXi is a hypervisor system only. It itself cannot run services and route between network segments. For this purpose a service VM connected both to internal and external networks can be used.
+
+In Hetzner console request an additional IP in order to provide external access to the setup. The IP will be provided via DHCP based on the MAC of the VM:
+
+* Additional IP: 116.202.150.51
+* Dedicated MAC: 00:50:56:00:EF:15
+
+The server comes with 2 hard drives. The installer allocates only one to the datastore1. Expand datastore1 to the second disk: Storage -> datastore1 -> Increase capacity -> Add extent -> select disk

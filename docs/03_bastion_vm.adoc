@@ -1,0 +1,50 @@
+# Installation node
+
+Downloads:
+
+* http://mirror.openshift.com/pub/openshift-v4/dependencies/rhcos/4.4/latest/rhcos-4.4.3-x86_64-vmware.x86_64.ova
+* http://mirror.openshift.com/pub/openshift-v4/dependencies/rhcos/4.4/latest/rhcos-4.4.3-x86_64-installer.x86_64.iso
+* http://mirror.openshift.com/pub/openshift-v4/dependencies/rhcos/4.4/latest/rhcos-4.4.3-x86_64-metal.x86_64.raw.gz
+
+Copy the ISO image to VMware ESXi datastore: `scp rhel-7.2-x86_64-dvd.iso admin@116.202.244.184:/vmfs/volumes/5f071833-206b0ebc-5c52-a8a1590f07ad/iso/rhel-8.2-x86_64-dvd.iso`
+
+Network settings:
+
+* IP: 116.202.150.51/28
+* Gateway: 116.202.150.49
+* Netmask: 255.255.255.240
+* Broadcast: 116.202.150.63
+* Separate MAC: 00:50:56:00:EF:15
+
+Create a VM, configure CDROM with ISO image on datastore1/iso. Boot the VM, follow the installation process. Configure network interface with the custom MAC on externally facing interface in order to receive the IP from DHCP. Select "Server with GUI" software packages. Set root password: r***. Configure an unprivileged SSH user: **ops**. Finish the installation, reboot the VM. Accept the license in the console. Finish the configuration. Login in the GUI console.
+
+Verify remote SSH access: `ssh 116.202.150.51`
+
+Update the system: `sudo yum update`
+
+Reboot
+
+For ops user configure SSH key login: `ssh-copy-id ops@116.202.150.51`.
+
+Verify: `ssh ops@116.202.150.51`
+
+A web management console is available.
+
+* Enable with `sudo systemctl enable --now cockpit.socket`.
+* Firewall: `sudo firewall-cmd --add-service=cockpit`.
+
+The console is available at https://116.202.150.51:9090.
+
+Disable: `sudo systemctl disable --now cockpit.socket`
+
+Verify Podman functioning: `podman run docker.io/library/hello-world`
+
+Expected output:
+```
+Hello from Docker!
+This message shows that your installation appears to be working correctly.
+```
+
+Configure the internal network interface on LabNetwork: IP: *192.168.0.1/24*
+
+This host will run services needed for the cluster installation: DNS, NTP, web proxy, HTTP, HAproxy

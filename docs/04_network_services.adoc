@@ -1,0 +1,196 @@
+# Network services
+Netowork services required by the cluster installation process are running on bastion host
+
+## DNS
+
+* Base domain: cmpf.schwarz
+* Server IP: 192.168.0.1
+* Hostname: dns01.cmpf.schwarz
+
+Forward zone link:../ocp4/cmpf.schwarz.db[/var/named/cmpf.schwarz.db]:
+```
+$TTL 86400
+@ IN SOA bastion.cmpf.schwarz. admin.cmpf.schwarz. (
+                                                2020011800 ;Serial
+                                                3600 ;Refresh
+                                                1800 ;Retry
+                                                604800 ;Expire
+                                                86400 ;Minimum TTL
+)
+
+;Name Server Information
+@ IN NS bastion.cmpf.schwarz.
+bastion IN A 192.168.0.1
+cmpf.schwarz. IN MX 10 mail.cmpf.schwarz.
+mail  IN   CNAME bastion.cmpf.schwarz.
+dns   IN   CNAME bastion.cmpf.schwarz.
+```
+
+Reverse zone link:../ocp4/cmpf.schwarz.rev[/var/named/cmpf.schwarz.rev]:
+```
+$TTL 86400
+@ IN SOA bastion.cmpf.schwarz. admin.cmpf.schwarz. (
+                                                2020011800 ;Serial
+                                                3600 ;Refresh
+                                                1800 ;Retry
+                                                604800 ;Expire
+                                                86400 ;Minimum TTL
+)
+
+@ IN NS bastion.cmpf.schwarz.
+bastion IN A 192.168.0.1
+
+1 IN PTR bastion.cmpf.schwarz.
+```
+
+Check config:
+```
+named-checkconf
+named-checkzone cmpf.schwarz /var/named/cmpf.schwarz.db
+named-checkzone 192.168.0.1 /var/named/cmpf.schwarz.rev
+```
+
+Update DNS settings on bastion /etc/resolv.conf:
+```
+search cmpf.schwarz sandbox-ocp4.cmpf.schwarz
+nameserver 192.168.0.1
+```
+* Restart: systemctl restart named
+* Firewall: firewall-cmd  --add-service=dns --zone=public  --permanent; firewall-cmd --reload
+* Verify: nslookup bastion.cmpf.schwarz 192.168.0.1
+
+Add DNS entries for OCP4 cluster:
+
+.OCP4 DNS records
+[options="header"]
+|=======================
+|Hostname|Record|IP
+| ocp-master-0.sandbox-ocp4.cmpf.schwarz | A | 192.168.0.10
+| ocp-master-1.sandbox-ocp4.cmpf.schwarz | A | 192.168.0.11
+| ocp-master-2.sandbox-ocp4.cmpf.schwarz | A | 192.168.0.12
+| ocp-compute-0.sandbox-ocp4.cmpf.schwarz | A | 192.168.0.20
+| ocp-compute-1.sandbox-ocp4.cmpf.schwarz | A | 192.168.0.21
+| ocp-compute-2.sandbox-ocp4.cmpf.schwarz | A | 192.168.0.22
+| bootstrap.sandbox-ocp4.cmpf.schwarz | A | 192.168.0.30
+| api.sandbox-ocp4.cmpf.schwarz | A | 192.168.0.1
+| etcd-0.cmpf.schwarz | A | ocp-master-0.sandbox-ocp4.cmpf.schwarz
+| etcd-1.cmpf.schwarz | A | ocp-master-1.sandbox-ocp4.cmpf.schwarz
+| etcd-2.cmpf.schwarz | A | ocp-master-2.sandbox-ocp4.cmpf.schwarz
+| api-int.sandbox-ocp4.cmpf.schwarz | A | 192.168.0.1
+| * api-int.sandbox-ocp4.cmpf.schwarz | A | 192.168.0.1
+|=======================
+
+Forward zone entries are in link:../ocp4/cmpf.schwarz.db[/var/named/cmpf.schwarz.db]
+
+Reverse zone entries are in link:../ocp4/cmpf.schwarz.rev[/var/named/cmpf.schwarz.rev]
+
+
+Verify:
+```
+host api.sandbox-ocp4.cmpf.schwarz
+nslookup api
+nslookup ocp-master-1
+```
+
+## NTP
+On bastion:
+
+* install: `sudo dnf install chrony`
+* enable: `sudo systemctl enable chronyd`
+* firewall: `sudo firewall-cmd --permanent --add-service=ntp; sudo firewall-cmd --reload`
+* Configure server /etc/chrony.conf:
+* Configure client (test VM) /etc/chrony.conf: `Server 192.168.0.1; sudo systemctl restart chronyd`
+* Verify on client: `chronyc sources`
+
+
+## Proxy (Squid)
+
+* Install: `sudo dnf install squid`
+* Enable: `sudo systemctl enable --now squid`
+
+Configure link:../ocp4//etc/squid/squid.conf[/etc/squid/squid.conf]:
+```
+acl labnet   src 192.168.0.0/24
+http_access allow labnet
+...
+# Anonymize Traffic
+via off
+forwarded_for off
+
+request_header_access From deny all
+request_header_access Server deny all
+request_header_access WWW-Authenticate deny all
+request_header_access Link deny all
+request_header_access Cache-Control deny all
+request_header_access Proxy-Connection deny all
+request_header_access X-Cache deny all
+request_header_access X-Cache-Lookup deny all
+request_header_access Via deny all
+request_header_access X-Forwarded-For deny all
+request_header_access Pragma deny all
+request_header_access Keep-Alive deny all
+```
+
+* Restart: `sudo systemctl restart squid`
+* Firewall: `firewall-cmd --add-port=3128/tcp --permanent; firewall-cmd --reload`
+
+On a VM running in Lab network add /etc/profile.d/proxy.sh:
+```
+PROXY_URL="http://192.168.0.1:3128/"
+export http_proxy="$PROXY_URL"
+export https_proxy="$PROXY_URL"
+export ftp_proxy="$PROXY_URL"
+export no_proxy="127.0.0.1,localhost,cmpf.schwarz"
+export HTTP_PROXY="$PROXY_URL"
+export HTTPS_PROXY="$PROXY_URL"
+export FTP_PROXY="$PROXY_URL"
+export NO_PROXY="127.0.0.1,localhost,cmpf.schwarz"
+```
+
+* Verify: `curl http://www.google.com`
+* YUM /etc/dnf/dnf.conf: add `proxy=http://192.168.0.1:3128`
+* Verify: `yum search bind-utils`
+
+## HTTP
+
+* Install: `dnf install httpd`
+* Firewall: `firewall-cmd --zone=public --permanent --add-service=http; firewall-cmd --reload`
+* Bind to internal IP only /etc/httpd/conf/httpd.conf: `Listen 192.168.0.1:80`
+* Enable: `systemctl enable httpd; systemctl start httpd`
+* Verify: `curl http://bastion.cmpf.schwarz`
+
+Use this service to serve link:05_installer_config.adoc[files] during the installation of the cluster.
+
+* Publish: `cp ocp4-vmware/*.ign /var/www/html`, `cp rhcos-4.4.3-x86_64-metal.x86_64.raw.gz /var/www/html/rhcos.raw.gz`
+* Verify from test host: `curl http://bastion/bootstrap.ign`
+* Set permissions: `chmod 644 /var/www/html/*`
+* Update SELinux: `restorecon -RFv /var/www/html/`
+
+URLs:
+
+* bootstrap: `http://bastion.cmpf.schwarz/bootstrap.ign`
+* master: `http://bastion.cmpf.schwarz/master.ign`
+* workier: `http://bastion.cmpf.schwarz/worker.ign`
+* RHCOS raw filesystem image: `http://bastion.cmpf.schwarz/rhcos.raw.gz`
+
+## Loadbalancer (HAproxy)
+
+OCP4 installation process requires loadbalancers pointing to API and ingress. In the scope of this project a single loadbalancer can be used and installed on the bastion host. HAproxy is used for the purpose.
+
+* Install: sudo dnf install haproxy
+
+Verify that all master and worker nodes are resolvable and reachable from the loadbalancer host (bastion)
+
+Config is in  link:../ocp4/haproxy.cfg[/etc/haproxy/haproxy.cfg]
+
+Adjust SElinux rules:
+```
+semanage port  -a 22623 -t http_port_t -p tcp
+semanage port -a 6443 -t http_port_t -p tcp
+semanage port -a 32700 -t http_port_t -p tcp
+semanage port -a 8888 -t http_port_t -p tcp
+setsebool -P haproxy_connect_any 1
+```
+
+* Firewall: `firewall-cmd --add-port={443/tcp,6443/tcp,8888/tcp,22623/tcp} --permanent; firewall-cmd --reload`
+* Enable: `systemctl enable haproxy; systemctl start haproxy`

@@ -1,0 +1,42 @@
+$TTL 86400
+$ORIGIN cmpf.schwarz.
+@ IN SOA bastion.cmpf.schwarz. admin.cmpf.schwarz. (
+                                                2020011800 ;Serial
+                                                3600 ;Refresh
+                                                1800 ;Retry
+                                                604800 ;Expire
+                                                86400 ;Minimum TTL
+)
+
+;Name Server Information
+@ IN NS bastion.cmpf.schwarz.
+
+;IP Address for Name Server
+bastion IN A 192.168.0.1
+
+;Mail Server MX (Mail exchanger) Record
+cmpf.schwarz. IN MX 10 mail.cmpf.schwarz.
+
+;A Record for the following Host name
+;bastion  IN   A   192.168.0.1
+
+;CNAME Record
+mail  IN   CNAME bastion.cmpf.schwarz.
+dns   IN   CNAME bastion.cmpf.schwarz.
+
+ocp-master-0.sandbox-ocp4	IN A 192.168.0.10
+ocp-master-1.sandbox-ocp4	IN A 192.168.0.11
+ocp-master-2.sandbox-ocp4	IN A 192.168.0.12
+ocp-compute-0.sandbox-ocp4	IN A 192.168.0.20
+ocp-compute-1.sandbox-ocp4	IN A 192.168.0.21
+ocp-compute-2.sandbox-ocp4	IN A 192.168.0.22
+bootstrap.sandbox-ocp4		IN A 192.168.0.30
+api.sandbox-ocp4		IN A 192.168.0.1
+etcd-0.sandbox-ocp4		IN A 192.168.0.10
+etcd-1.sandbox-ocp4		IN A 192.168.0.11
+etcd-2.sandbox-ocp4		IN A 192.168.0.12
+api-int.sandbox-ocp4		IN A 192.168.0.1
+*.apps.sandbox-ocp4		IN A 192.168.0.1
+_etcd-server-ssl._tcp.sandbox-ocp4	IN SRV 0 10 2380 etcd-0.sandbox-ocp4
+_etcd-server-ssl._tcp.sandbox-ocp4      IN SRV 0 10 2380 etcd-1.sandbox-ocp4
+_etcd-server-ssl._tcp.sandbox-ocp4      IN SRV 0 10 2380 etcd-2.sandbox-ocp4

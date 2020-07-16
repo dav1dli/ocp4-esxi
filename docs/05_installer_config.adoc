@@ -1,0 +1,117 @@
+# OCP Installer Configuration
+
+## SSH keys
+```
+ssh-keygen -t rsa -b 4096 -N '' -f ~/.ssh/hetzner_id_rsa
+eval "$(ssh-agent -s)"
+ssh-add ~/.ssh/hetzner_id_rsa
+```
+
+## Downloads
+
+* https://mirror.openshift.com/pub/openshift-v4/clients/ocp/latest-4.4/openshift-client-linux-4.4.11.tar.gz[OC client^]
+* https://mirror.openshift.com/pub/openshift-v4/clients/ocp/latest-4.4/openshift-install-linux-4.4.11.tar.gz[OCP4 installer^]
+* RedHat registry pull secret from https://cloud.redhat.com/openshift/install/pull-secret[cloud.redhat.com^]
+
+Install client: `sudo tar -xzvf ~/openshift-client-linux-4.4.11.tar.gz -C /usr/local/bin`
+
+## Mirror registry
+
+For offline installation containers are mirrored locally. They are served from a registry running on bastion host. This is not necessary if a proxy server connecting the cluster to the Internet is available.
+
+* Install system dependencies: `yum -y install podman httpd-tools jq`
+* Create registry directories: `sudo mkdir -p /var/registry/{auth,certs,data}`
+* Generate a certificate: `cd /var/registry/certs; sudo openssl req -newkey rsa:4096 -nodes -sha256 -keyout domain.key -x509 -days 365 -out domain.crt`
+* Create a username and password: `sudo htpasswd -bBc /var/registry/auth/htpasswd ocp4install r3***`
+* Run the registry:
+```
+podman run --name mirror-registry -p 5000:5000 \
+     -v /var/registry/data:/var/lib/registry:z \
+     -v /var/registry/auth:/auth:z \
+     -e "REGISTRY_AUTH=htpasswd" \
+     -e "REGISTRY_AUTH_HTPASSWD_REALM=Registry Realm" \
+     -e REGISTRY_AUTH_HTPASSWD_PATH=/auth/htpasswd \
+     -v /var/registry/certs:/certs:z \
+     -e REGISTRY_HTTP_TLS_CERTIFICATE=/certs/domain.crt \
+     -e REGISTRY_HTTP_TLS_KEY=/certs/domain.key \
+     -d docker.io/library/registry:2
+```
+
+* Firewall: `sudo firewall-cmd --add-port=5000/tcp --zone=public   --permanent; sudo firewall-cmd --reload`
+* Trust the certificate: `sudo cp /var/registry/certs/domain.crt /etc/pki/ca-trust/source/anchors/; sudo update-ca-trust`
+* Encode credentials:
+```
+echo -n 'ocp4install:r***' | base64 -w0
+cat pull-secret.txt | jq .  > pull-secret-local.txt
+```
+
+Add
+```
+ "bastion.cmpf.schwarz:5000": {
+ "auth": "<the output of echo / base64 command>",
+ "email": "dliderma@redhat.com"
+ },
+```
+to pull-secret-local.txt.
+
+* Set environment:
+```
+export OCP_RELEASE=4.4.12
+export LOCAL_REGISTRY='bastion.cmpf.schwarz:5000'
+export LOCAL_REPOSITORY='ocp4/openshift4'
+export PRODUCT_REPO='openshift-release-dev'
+export LOCAL_SECRET_JSON='/root/pull-secret-local.txt'
+export RELEASE_NAME="ocp-release"
+export ARCHITECTURE='x86_64'
+```
+
+* Perform the mirroring:
+```
+oc adm -a ${LOCAL_SECRET_JSON} release mirror \
+--from=quay.io/${PRODUCT_REPO}/${RELEASE_NAME}:${OCP_RELEASE}-${ARCHITECTURE} \
+--to=${LOCAL_REGISTRY}/${LOCAL_REPOSITORY} \
+--to-release-image=${LOCAL_REGISTRY}/${LOCAL_REPOSITORY}:${OCP_RELEASE}-${ARCHITECTURE}
+```
+
+* Update image: bastion.cmpf.schwarz:5000/ocp4/openshift4:4.4.12-x86_64
+* Mirror prefix: bastion.cmpf.schwarz:5000/ocp4/openshift4
+
+To use the new mirrored repository to install, add the following section to the install-config.yaml:
+```
+imageContentSources:
+- mirrors:
+  - bastion.cmpf.schwarz:5000/ocp4/openshift4
+  source: quay.io/openshift-release-dev/ocp-release
+- mirrors:
+  - bastion.cmpf.schwarz:5000/ocp4/openshift4
+  source: quay.io/openshift-release-dev/ocp-v4.0-art-dev
+```
+
+To use the new mirrored repository for upgrades, use the following to create an ImageContentSourcePolicy:
+```
+apiVersion: operator.openshift.io/v1alpha1
+kind: ImageContentSourcePolicy
+metadata:
+  name: example
+spec:
+  repositoryDigestMirrors:
+  - mirrors:
+    - bastion.cmpf.schwarz:5000/ocp4/openshift4
+    source: quay.io/openshift-release-dev/ocp-release
+  - mirrors:
+    - bastion.cmpf.schwarz:5000/ocp4/openshift4
+    source: quay.io/openshift-release-dev/ocp-v4.0-art-dev
+```
+## Installer
+
+*Note:* the example shows proxy setup. Steps necessary for local containers mirroring are listed above.
+
+* Create a directory for installation configurations: `mkdir ocp4`
+* Manually create the installation configuration file link:../ocp4/initial-config.yaml[ocp4/initial-config.yaml]. In this example a proxy is defined. Add pull request downloaded from https://cloud.redhat.com/openshift/install/pull-secret[cloud.redhat.com^] and previusly generated public SSH key.
+* `cp ocp4/initial-config.yaml ocp4/install-config.yaml`
+* Create manifests: `./openshift-install create manifests --dir=ocp4-vmware`
+* Create ignition files: `./openshift-install create ignition-configs --dir=ocp4-vmware`
+
+Ignition files in ocp4 are to be published in link:04_network_services.adoc[HTTP server]. They are valid for 24 hours during which the installation must be finished. `cp ocp4/*.ign /var/www/html/`
+
+At this stage link:06_ocp_vms.adoc[VMs] can be booted to start the installation process.

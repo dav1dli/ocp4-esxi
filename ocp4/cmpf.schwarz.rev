@@ -1,0 +1,24 @@
+$TTL 86400
+@ IN SOA bastion.cmpf.schwarz. admin.cmpf.schwarz. (
+                                                2020011800 ;Serial
+                                                3600 ;Refresh
+                                                1800 ;Retry
+                                                604800 ;Expire
+                                                86400 ;Minimum TTL
+)
+
+;Name Server Information
+@ IN NS bastion.cmpf.schwarz.
+
+;IP Address for Name Server
+bastion IN A 192.168.0.1
+
+;Reverse lookup for Name Server
+1	IN PTR bastion.cmpf.schwarz.
+10	IN PTR ocp-master-0.sandbox-ocp4.cmpf.schwarz.
+11      IN PTR ocp-master-1.sandbox-ocp4.cmpf.schwarz.
+12      IN PTR ocp-master-2.sandbox-ocp4.cmpf.schwarz.
+20      IN PTR ocp-compute-0.sandbox-ocp4.cmpf.schwarz.
+21      IN PTR ocp-compute-1.sandbox-ocp4.cmpf.schwarz.
+22      IN PTR ocp-compute-2.sandbox-ocp4.cmpf.schwarz.
+30      IN PTR bootstrap.sandbox-ocp4.cmpf.schwarz.

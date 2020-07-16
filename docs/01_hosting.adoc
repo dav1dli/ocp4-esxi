@@ -1,0 +1,17 @@
+# Hosting environment
+In order to create a Lab environment a server from a hosting provider was ordered.
+
+AX51-NVMe #1236577 (116.202.244.184)
+```
+IPv4 Address:	116.202.244.184
+IPv6 Address:	2a01:4f8:241:4207::2
+Username:	root
+Password:	***
+```
+
+Request an additional IP with a dedicated MAC in Hetzner console
+
+* Additional IP: 116.202.150.51
+* Dedicated MAC: 00:50:56:00:EF:15
+
+This IP can be assigned to a bastion host using the provided virtual MAC address. This host can be used as a jump host into an isolated network and/or a router.
