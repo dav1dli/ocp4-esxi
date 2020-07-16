@@ -2,6 +2,7 @@
 Netowork services required by the cluster installation process are running on bastion host
 
 ## DNS
+DNS service is required for the cluster installation. For this purpose https://www.linuxtechi.com/setup-bind-server-centos-8-rhel-8/[named BIND^] is used.
 
 * Base domain: cmpf.schwarz
 * Server IP: 192.168.0.1
@@ -93,6 +94,8 @@ nslookup ocp-master-1
 ```
 
 ## NTP
+Time synchronization is important in distributed configurations and on VM, especially on VMware. https://linuxconfig.org/redhat-8-configure-ntp-server[Chrony^] provides both server and client configuation.
+
 On bastion:
 
 * install: `sudo dnf install chrony`
@@ -104,6 +107,7 @@ On bastion:
 
 
 ## Proxy (Squid)
+In this setup the internal network is non-routable. The way to connect to the Internet is via proxy.
 
 * Install: `sudo dnf install squid`
 * Enable: `sudo systemctl enable --now squid`
@@ -152,6 +156,7 @@ export NO_PROXY="127.0.0.1,localhost,cmpf.schwarz"
 * Verify: `yum search bind-utils`
 
 ## HTTP
+HTTP server is used to serve files like config files or disk images during the installation. 
 
 * Install: `dnf install httpd`
 * Firewall: `firewall-cmd --zone=public --permanent --add-service=http; firewall-cmd --reload`
