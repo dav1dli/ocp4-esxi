@@ -1,4 +1,5 @@
 # Nodes
+
 ```
 NAME                                     STATUS   ROLES    AGE   VERSION
 ocp-master-0.sandbox-ocp4.cmpf.schwarz   Ready    master   39m   v1.17.1+1aa1c48
@@ -7,6 +8,7 @@ ocp-master-2.sandbox-ocp4.cmpf.schwarz   Ready    master   31m   v1.17.1+1aa1c48
 ```
 
 ### Approve the CSRs for workers
+
 Worker nodes create CSRs to join the cluster. These SCRs are https://docs.openshift.com/container-platform/4.4/installing/installing_bare_metal/installing-restricted-networks-bare-metal.html#installation-approve-csrs_installing-restricted-networks-bare-metal[reviewed and approved^]: `oc get csr`
 
 Approve all CSRs: `oc get csr -o go-template='{{range .items}}{{if not .status}}{{.metadata.name}}{{"\n"}}{{end}}{{end}}' | xargs oc adm certificate approve`
